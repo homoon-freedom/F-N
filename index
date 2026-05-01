@@ -1,0 +1,98 @@
+let isAdmin = false;
+let currentNeedsData = [];
+let currentEmotionsData = [];
+
+// 1. 초기 데이터 로드 (Local에서 먼저 찾고 없으면 기존 const에서 가져옴)
+function initDynamicData() {
+    const savedNeeds = localStorage.getItem('custom_needs_data');
+    const savedEmotions = localStorage.getItem('custom_emotions_data');
+    
+    currentNeedsData = savedNeeds ? JSON.parse(savedNeeds) : [...needsData];
+    currentEmotionsData = savedEmotions ? JSON.parse(savedEmotions) : [...emotionsData];
+}
+
+// 2. 관리자 확인
+function checkAdmin() {
+    const pw = document.getElementById('adminPassword').value;
+    if (pw === "1234") { // 설정하고 싶은 암호로 변경하세요
+        isAdmin = true;
+        alert("관리자 모드가 활성화되었습니다. 카드를 클릭하면 수정할 수 있습니다.");
+        document.getElementById('adminLogoutBtn').style.display = "block";
+        document.getElementById('adminPassword').style.display = "none";
+    } else {
+        alert("암호가 틀렸습니다.");
+    }
+}
+
+function logoutAdmin() {
+    isAdmin = false;
+    location.reload(); // 상태 초기화를 위해 새로고침
+}
+
+// 3. 기존 openModal 함수 수정 (수정 모드 분기 처리)
+// 이 부분은 기존 openModal 함수를 아래와 같이 감싸도록 수정하세요.
+const originalOpenModal = openModal; 
+openModal = function(type, name) {
+    if (isAdmin) {
+        startEditCard(type, name);
+    } else {
+        originalOpenModal(type, name);
+    }
+};
+
+// 4. 수정 시작
+function startEditCard(type, name) {
+    const data = type === 'needs' ? currentNeedsData : currentEmotionsData;
+    const item = data.find(d => d.name === name);
+    
+    document.getElementById('editType').value = type;
+    document.getElementById('editName').value = name;
+    document.getElementById('editDisplayName').value = item.name;
+    document.getElementById('editDesc').value = item.desc;
+    
+    const extraFields = document.getElementById('extraEditFields');
+    if(type === 'needs') {
+        extraFields.innerHTML = `
+            <label class="section-label">실천 행동</label>
+            <textarea id="editAction" style="min-height:60px;">${item.action}</textarea>
+        `;
+    } else {
+        extraFields.innerHTML = `
+            <label class="section-label">확언</label>
+            <textarea id="editAff" style="min-height:60px;">${item.aff}</textarea>
+        `;
+    }
+    
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+// 5. 변경사항 저장
+function saveCardEdit() {
+    const type = document.getElementById('editType').value;
+    const oldName = document.getElementById('editName').value;
+    const newName = document.getElementById('editDisplayName').value;
+    
+    const data = type === 'needs' ? currentNeedsData : currentEmotionsData;
+    const index = data.findIndex(d => d.name === oldName);
+    
+    if (index !== -1) {
+        data[index].name = newName;
+        data[index].desc = document.getElementById('editDesc').value;
+        if(type === 'needs') data[index].action = document.getElementById('editAction').value;
+        else data[index].aff = document.getElementById('editAff').value;
+        
+        // 로컬스토리지 저장
+        const storageKey = type === 'needs' ? 'custom_needs_data' : 'custom_emotions_data';
+        localStorage.setItem(storageKey, JSON.stringify(data));
+        
+        alert("수정되었습니다. 화면을 갱신합니다.");
+        location.reload();
+    }
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+// 페이지 로드 시 초기화 실행
+window.addEventListener('DOMContentLoaded', initDynamicData);
